@@ -1,0 +1,52 @@
+body {
+  background-color: var(--color-bg-1);
+  color: var(--color-text-1);
+  color-scheme: dark; // 这个属性设置后，滚动条也能表现为暗色模式
+}
+
+.app .arco-layout-header,
+.app .arco-layout-footer,
+.app .arco-layout-content {
+  color: var(--color-white);
+  text-align: center;
+  font-stretch: condensed;
+  font-size: 16px;
+  display: flex;
+  flex-direction: column;
+  //justify-content: center;
+}
+
+.app .arco-layout-header,
+.app .arco-layout-footer {
+  height: 58px;
+  //background-color: var(--color-primary-light-4);
+}
+
+
+.app .arco-layout-content {
+  //background-color: rgb(var(--arcoblue-6));
+}
+
+.app .top-menu-item {
+  padding: 0;
+}
+
+.app .top-menu-item-link {
+  padding: 0 12px;
+  height: 100%;
+  display: block;
+}
+
+.stock-tabs {
+  height: 100%;
+  .arco-tabs-content {
+    padding-top: 4px;
+    height: 100%;
+    .arco-tabs-content-inner {
+      height: 100%;
+    }
+  }
+  .arco-tabs-header-nav {
+    line-height: 48px;
+  }
+}
