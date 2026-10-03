@@ -19,6 +19,7 @@ type KlineChartProps = {
 const CHART_MAIN_PANE_ID = 'candle_pane';
 const CHART_VOLUME_PANE_ID = 'volume_pane';
 const CHART_EXTRA_PANE_ID = 'extra_indicator_pane';
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 
 type IndicatorPanelProps = {
@@ -40,16 +41,73 @@ async function renderIndicator(
   if (!chart) {
     return;
   }
-  const detail = await Api.Indicator.detail({
-    stockId,
-    startDate,
-    endDate,
-    names: indicator.outputColumns.join(','),
-  });
-  const indicatorPoints = deserializeIndicatorDetail(detail);
-  if (indicatorPoints.length === 0) {
-    return;
-  }
+  const pointMap = new Map<number, Record<string, number | null>>();
+  let loadedStart = Utils.toTimestamp(startDate);
+  let loadedEnd = Utils.toTimestamp(endDate);
+  let pendingLoad: Promise<void> | null = null;
+
+  const mergeIndicatorPoints = (rows: any[]) => {
+    const indicatorPoints = deserializeIndicatorDetail(rows);
+    indicatorPoints.forEach((point) => {
+      pointMap.set(point.timestamp, point.values);
+    });
+  };
+
+  const loadIndicatorRange = async (rangeStart: number, rangeEnd: number) => {
+    if (rangeStart > rangeEnd) {
+      return;
+    }
+    const detail = await Api.Indicator.detail({
+      stockId,
+      startDate: Utils.fromTimestamp(rangeStart),
+      endDate: Utils.fromTimestamp(rangeEnd),
+      names: indicator.outputColumns.join(','),
+    });
+    mergeIndicatorPoints(detail);
+  };
+
+  await loadIndicatorRange(loadedStart, loadedEnd);
+
+  const ensureIndicatorData = async (dataList: KLineData[]) => {
+    if (dataList.length === 0) {
+      return;
+    }
+    if (pendingLoad) {
+      await pendingLoad;
+    }
+
+    const rangeStart = dataList[0].timestamp;
+    const rangeEnd = dataList[dataList.length - 1].timestamp;
+    const missingRanges: Array<[number, number]> = [];
+
+    if (rangeStart < loadedStart) {
+      missingRanges.push([rangeStart, loadedStart - ONE_DAY_MS]);
+    }
+    if (rangeEnd > loadedEnd) {
+      missingRanges.push([loadedEnd + ONE_DAY_MS, rangeEnd]);
+    }
+    if (missingRanges.length === 0) {
+      return;
+    }
+
+    const currentLoad = (async () => {
+      for (const [missingStart, missingEnd] of missingRanges) {
+        await loadIndicatorRange(missingStart, missingEnd);
+      }
+      loadedStart = Math.min(loadedStart, rangeStart);
+      loadedEnd = Math.max(loadedEnd, rangeEnd);
+    })();
+
+    pendingLoad = currentLoad;
+    try {
+      await currentLoad;
+    } finally {
+      if (pendingLoad === currentLoad) {
+        pendingLoad = null;
+      }
+    }
+  };
+
   registerIndicator({
     name: indicator.name,
     shortName: indicator.name,
@@ -59,10 +117,8 @@ async function renderIndicator(
       title: `${key}: `,
       type: 'line',
     })),
-    calc: (dataList) => {
-      const pointMap = new Map(
-        indicatorPoints.map((point) => [point.timestamp, point.values])
-      );
+    calc: async (dataList) => {
+      await ensureIndicatorData(dataList);
       return dataList.map((item) => {
         const values = pointMap.get(item.timestamp);
         return indicator.outputColumns.reduce<Record<string, number | null>>((acc, key) => {
@@ -101,7 +157,6 @@ function IndicatorPanel({
   }
 
   const [activeTab, setActiveTab] = useState(indicatorOptions[0]?.indicatorId || '')
-  console.log(indicatorOptions)
   const onIndicatorChange = (key: string) => {
     if (!chart) {
       return;
