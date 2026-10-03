@@ -1,4 +1,4 @@
-import {ComponentPropsWithoutRef, ReactNode, useEffect, useRef, useState} from 'react'
+import {ComponentPropsWithoutRef, useEffect, useState} from 'react'
 import {Chart, DataLoaderGetBarsParams, dispose, init, KLineData, registerIndicator} from 'klinecharts'
 import {Api} from "@/asset/api";
 import Utils from "@/asset/utils";
@@ -21,17 +21,25 @@ const CHART_VOLUME_PANE_ID = 'volume_pane';
 const CHART_EXTRA_PANE_ID = 'extra_indicator_pane';
 
 
-function registerIndicatorPanel(
-  chart: Chart | null,
-  stock: Stock,
-  startDate: string,
-  endDate: string,
-): ReactNode | null {
+type IndicatorPanelProps = {
+  chart: Chart | null
+  stock: Stock
+  startDate: string
+  endDate: string
+}
+
+function IndicatorPanel({
+  chart,
+  stock,
+  startDate,
+  endDate,
+}: IndicatorPanelProps) {
   if (!chart) {
     return null;
   }
 
   const [indicatorOptions, setIndicatorOptions] = useState<IndicatorOption[]>([]);
+  const [activeTab, setActiveTab] = useState(indicatorOptions[0]?.indicatorId || '')
 
   useEffect(() => {
     let cancelled = false;
@@ -41,8 +49,9 @@ function registerIndicatorPanel(
         if (cancelled) {
           return;
         }
-        const options = deserializeIndicatorOptions(data);
+        const options = deserializeIndicatorOptions(data).filter(item => item.id !== 1);
         setIndicatorOptions(options);
+        setActiveTab(options[0]?.indicatorId || '');
       })
       .catch((error) => {
         if (!cancelled) {
@@ -56,7 +65,10 @@ function registerIndicatorPanel(
     };
   }, []);
 
-  const requestIndicator = async (key: string) => {
+  const renderIndicator = async (key: string) => {
+    if (!chart) {
+      return;
+    }
     const indicator = indicatorOptions.find((item) => item.indicatorId === key);
     if (!indicator) {
       return;
@@ -93,6 +105,7 @@ function registerIndicatorPanel(
         });
       },
     });
+    chart.removeIndicator({ paneId: CHART_EXTRA_PANE_ID });
     const indicatorId = chart.createIndicator({
       name: indicator.name,
       shortName: indicator.name,
@@ -108,27 +121,35 @@ function registerIndicatorPanel(
   };
 
   useEffect(() => {
-    chart.removeIndicator({ paneId: CHART_EXTRA_PANE_ID });
+    if (!chart) {
+      return;
+    }
     if (!indicatorOptions || indicatorOptions.length === 0) {
       return;
     }
-    requestIndicator(indicatorOptions[0].indicatorId).then(() => {});
+    renderIndicator(indicatorOptions[0].indicatorId).then(() => {});
   }, [stock.id, startDate, endDate]);
 
+
   const onIndicatorChange = (key: string) => {
-    chart.removeIndicator({ paneId: CHART_EXTRA_PANE_ID });
-    requestIndicator(key).then(() => {});
+    if (!chart) {
+      return;
+    }
+    console.log(activeTab)
+    renderIndicator(key).then(() => setActiveTab(key));
   }
+
+  onIndicatorChange(activeTab)
   return (
     <Tabs
-      activeTab={indicatorOptions[0].indicatorId}
-      onChange={(key) => onIndicatorChange(key)}
+      activeTab={activeTab}
+      defaultActiveTab={activeTab}
+      onChange={onIndicatorChange}
       style={{ marginTop: '12px' }}
     >
     {indicatorOptions.map((item) => {
       return (
-        <Tabs.TabPane key={item.indicatorId} title={item.name}>
-        </Tabs.TabPane>
+        <Tabs.TabPane key={item.indicatorId} title={item.name} />
       )
     })}
   </Tabs>
@@ -143,14 +164,14 @@ function KlineChart({
   ...divProps
 }: KlineChartProps) {
   const listedAt = Utils.toTimestamp(stock.listed_at)
-  const chartRef = useRef<Chart | null>(null)
+  const [chart, setChart] = useState<Chart | null>(null)
 
   useEffect(() => {
     const chart: Chart | null = init('chart')
     if (!chart) {
       return;
     }
-    chartRef.current = chart
+    setChart(chart)
     chart.setSymbol({ ticker: stock.symbol })
     chart.setPeriod({ span: 1, type: 'day' })
     chart.setStyles({
@@ -203,19 +224,22 @@ function KlineChart({
     })
 
     return () => {
+      setChart(null)
       dispose('chart')
     }
   }, [stock, startDate, endDate])
 
-  let indicatorTabs: ReactNode | null = null
-  if (withIndicators) {
-    indicatorTabs = registerIndicatorPanel(chartRef.current, stock, startDate, endDate)
-  }
-
   return (
     <div>
       <div id="chart" {...divProps} />
-      {withIndicators && indicatorTabs}
+      {withIndicators && (
+        <IndicatorPanel
+          chart={chart}
+          stock={stock}
+          startDate={startDate}
+          endDate={endDate}
+        />
+      )}
     </div>
   )
 }
