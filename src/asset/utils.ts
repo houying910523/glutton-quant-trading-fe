@@ -11,6 +11,10 @@ class Utils {
     return exchange;
   }
 
+  static formatDate(date: Date): string {
+    return date.toISOString().substring(0, 10);
+  }
+
   static toTimestamp(date: string): number {
     return new Date(date).getTime();
   }

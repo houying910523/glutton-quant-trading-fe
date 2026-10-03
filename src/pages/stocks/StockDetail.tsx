@@ -1,8 +1,7 @@
 import {Button, Card, Descriptions} from "@arco-design/web-react";
 import Utils from "@/asset/utils";
-import {IconStar, IconStarFill} from "@arco-design/web-react/icon";
+import {IconStar} from "@arco-design/web-react/icon";
 import KlineChart from "@/pages/stocks/KlineChart";
-
 
 
 function StockDetail({
@@ -11,7 +10,6 @@ function StockDetail({
   if (!stock) {
     return null;
   }
-  console.log(stock);
   const data = [
     {
       label: '股票代码',
@@ -41,8 +39,8 @@ function StockDetail({
       </span>
     </div>
   )
-  const endDate = '2026-09-30'
-  const startDate = '2026-01-01'
+  const endDate = Utils.formatDate(new Date());
+  const startDate = Utils.fromTimestamp(new Date().getTime() - 365 * 24 * 60 * 60 * 1000);
   return (
     <div>
       <Card
@@ -51,7 +49,15 @@ function StockDetail({
       >
         <Descriptions colon=' :' layout='inline-horizontal' data={data} column={4} />
       </Card>
-      <KlineChart stock={stock} startDate={startDate} endDate={endDate} style={{ width: '100%', height: 400 }} />
+      <Card style={{ width: '100%', marginTop: '12px' }}>
+        <KlineChart
+          stock={stock}
+          startDate={startDate}
+          endDate={endDate}
+          withIndicators={true}
+          style={{ width: '100%', height: 620 }}
+        />
+      </Card>
     </div>
   );
 }

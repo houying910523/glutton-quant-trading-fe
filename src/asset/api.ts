@@ -9,7 +9,7 @@ const doGet = async (url: string, params: any) => {
   if (params) {
     let del = "?";
     for (let item in params) {
-      url = url + del + item + '=' + params[item];
+      url = url + del + encodeURIComponent(item) + '=' + encodeURIComponent(params[item]);
       del = "&";
     }
   }
@@ -29,7 +29,7 @@ const post = (url: string) => {
   return (params: any) => doPost('/api' + url, params).then(validate)
 }
 const get = (url: string) => {
-  return (params: any) => doGet('/api' + url, params).then(validate)
+  return (params?: any) => doGet('/api' + url, params).then(validate)
 }
 
 export type StockListParams = {
@@ -39,9 +39,25 @@ export type StockListParams = {
   pageSize?: number,
 }
 
+export type IndicatorDetailParams = {
+  stockId: number,
+  startDate: string,
+  endDate: string,
+  names: string,
+}
+
 export const Api = {
   Stock: {
     list: ({symbol, name, pageNo, pageSize}: StockListParams) => get('/stock/list')({symbol, name, page_no: pageNo, page_size: pageSize}),
     daily: ({stockId, startDate, endDate}: {stockId: number, startDate: string, endDate: string}) => get('/stock/daily')({stock_id: stockId, start_date: startDate, end_date: endDate}),
-  }
+  },
+  Indicator: {
+    list: () => get('/indicator/list')(),
+    detail: ({stockId, startDate, endDate, names}: IndicatorDetailParams) => get('/indicator/detail')({
+      stock_id: stockId,
+      start_date: startDate,
+      end_date: endDate,
+      names,
+    }),
+  },
 }
