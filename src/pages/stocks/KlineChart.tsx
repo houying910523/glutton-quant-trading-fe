@@ -26,6 +26,66 @@ type IndicatorPanelProps = {
   stock: Stock
   startDate: string
   endDate: string
+  indicatorOptions: IndicatorOption[]
+}
+
+async function renderIndicator(
+  chart: Chart,
+  stockId: number,
+  indicator: IndicatorOption,
+  startDate: string,
+  endDate: string,
+  paneId: string,
+) {
+  if (!chart) {
+    return;
+  }
+  const detail = await Api.Indicator.detail({
+    stockId,
+    startDate,
+    endDate,
+    names: indicator.outputColumns.join(','),
+  });
+  const indicatorPoints = deserializeIndicatorDetail(detail);
+  if (indicatorPoints.length === 0) {
+    return;
+  }
+  registerIndicator({
+    name: indicator.name,
+    shortName: indicator.name,
+    series: 'normal',
+    figures: indicator.outputColumns.map((key) => ({
+      key,
+      title: `${key}: `,
+      type: 'line',
+    })),
+    calc: (dataList) => {
+      const pointMap = new Map(
+        indicatorPoints.map((point) => [point.timestamp, point.values])
+      );
+      return dataList.map((item) => {
+        const values = pointMap.get(item.timestamp);
+        return indicator.outputColumns.reduce<Record<string, number | null>>((acc, key) => {
+          acc[key] = values?.[key] ?? null;
+          return acc;
+        }, {});
+      });
+    },
+  });
+  // const paneId = indicator.attachKline ? CHART_MAIN_PANE_ID : CHART_EXTRA_PANE_ID;
+  chart.removeIndicator({ paneId });
+  const indicatorId = chart.createIndicator({
+    name: indicator.name,
+    shortName: indicator.name,
+    paneId: paneId,
+  });
+  if (indicatorId) {
+    chart.setPaneOptions({
+      id: CHART_EXTRA_PANE_ID,
+      minHeight: 120,
+      height: 140,
+    });
+  }
 }
 
 function IndicatorPanel({
@@ -33,39 +93,16 @@ function IndicatorPanel({
   stock,
   startDate,
   endDate,
+  indicatorOptions,
 }: IndicatorPanelProps) {
   if (!chart) {
-    return null;
+    console.log('chart is null')
+    return;
   }
 
-  const [indicatorOptions, setIndicatorOptions] = useState<IndicatorOption[]>([]);
   const [activeTab, setActiveTab] = useState(indicatorOptions[0]?.indicatorId || '')
-
-  useEffect(() => {
-    let cancelled = false;
-
-    Api.Indicator.list()
-      .then((data) => {
-        if (cancelled) {
-          return;
-        }
-        const options = deserializeIndicatorOptions(data).filter(item => item.id !== 1);
-        setIndicatorOptions(options);
-        setActiveTab(options[0]?.indicatorId || '');
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.error(error);
-          setIndicatorOptions([]);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const renderIndicator = async (key: string) => {
+  console.log(indicatorOptions)
+  const onIndicatorChange = (key: string) => {
     if (!chart) {
       return;
     }
@@ -73,73 +110,9 @@ function IndicatorPanel({
     if (!indicator) {
       return;
     }
-    const detail = await Api.Indicator.detail({
-      stockId: stock.id,
-      startDate,
-      endDate,
-      names: indicator.outputColumns.join(','),
-    });
-    const indicatorPoints = deserializeIndicatorDetail(detail);
-    if (indicatorPoints.length === 0) {
-      return;
-    }
-    registerIndicator({
-      name: indicator.name,
-      shortName: indicator.name,
-      series: 'normal',
-      figures: indicator.outputColumns.map((key) => ({
-        key,
-        title: `${key}: `,
-        type: 'line',
-      })),
-      calc: (dataList) => {
-        const pointMap = new Map(
-          indicatorPoints.map((point) => [point.timestamp, point.values])
-        );
-        return dataList.map((item) => {
-          const values = pointMap.get(item.timestamp);
-          return indicator.outputColumns.reduce<Record<string, number | null>>((acc, key) => {
-            acc[key] = values?.[key] ?? null;
-            return acc;
-          }, {});
-        });
-      },
-    });
-    chart.removeIndicator({ paneId: CHART_EXTRA_PANE_ID });
-    const indicatorId = chart.createIndicator({
-      name: indicator.name,
-      shortName: indicator.name,
-      paneId: CHART_EXTRA_PANE_ID,
-    });
-    if (indicatorId) {
-      chart.setPaneOptions({
-        id: CHART_EXTRA_PANE_ID,
-        minHeight: 120,
-        height: 140,
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (!chart) {
-      return;
-    }
-    if (!indicatorOptions || indicatorOptions.length === 0) {
-      return;
-    }
-    renderIndicator(indicatorOptions[0].indicatorId).then(() => {});
-  }, [stock.id, startDate, endDate]);
-
-
-  const onIndicatorChange = (key: string) => {
-    if (!chart) {
-      return;
-    }
-    console.log(activeTab)
-    renderIndicator(key).then(() => setActiveTab(key));
+    renderIndicator(chart, stock.id, indicator, startDate, endDate, CHART_EXTRA_PANE_ID).then(() => setActiveTab(key));
   }
 
-  onIndicatorChange(activeTab)
   return (
     <Tabs
       activeTab={activeTab}
@@ -166,6 +139,36 @@ function KlineChart({
   const listedAt = Utils.toTimestamp(stock.listed_at)
   const [chart, setChart] = useState<Chart | null>(null)
 
+  const [klineIndicators, setKlineIndicators] = useState<IndicatorOption[]>([]);
+  const [nonKlineIndicators, setNonKlineIndicators] = useState<IndicatorOption[]>([]);
+  const [activeTab, setActiveTab] = useState(klineIndicators[0]?.indicatorId || '')
+  // 加载所有指标
+  useEffect(() => {
+    let cancelled = false;
+
+    Api.Indicator.list()
+      .then((data) => {
+        if (cancelled) {
+          return;
+        }
+        const options = deserializeIndicatorOptions(data);
+        setKlineIndicators(options.filter(item => item.attachKline));
+        setNonKlineIndicators(options.filter(item => !item.attachKline));
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error(error);
+          setKlineIndicators([]);
+          setNonKlineIndicators([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 初始化图表
   useEffect(() => {
     const chart: Chart | null = init('chart')
     if (!chart) {
@@ -186,7 +189,6 @@ function KlineChart({
         }
       }
     })
-    chart.createIndicator({ name: 'MA', paneId: CHART_MAIN_PANE_ID })
     chart.createIndicator({ name: 'VOL', paneId: CHART_VOLUME_PANE_ID })
     chart.setPaneOptions({
       id: CHART_VOLUME_PANE_ID,
@@ -229,8 +231,30 @@ function KlineChart({
     }
   }, [stock, startDate, endDate])
 
+  const onIndicatorChange = (key: string) => {
+    if (!chart) {
+      return;
+    }
+    const indicator = klineIndicators.find((item) => item.indicatorId === key);
+    if (!indicator) {
+      return;
+    }
+    renderIndicator(chart, stock.id, indicator, startDate, endDate, CHART_MAIN_PANE_ID).then(() => setActiveTab(key));
+  }
   return (
     <div>
+      <Tabs
+        activeTab={activeTab}
+        defaultActiveTab={activeTab}
+        onChange={onIndicatorChange}
+        style={{ marginTop: '0px' }}
+      >
+        {klineIndicators.map((item) => {
+          return (
+            <Tabs.TabPane key={item.indicatorId} title={item.name} />
+          )
+        })}
+      </Tabs>
       <div id="chart" {...divProps} />
       {withIndicators && (
         <IndicatorPanel
@@ -238,6 +262,7 @@ function KlineChart({
           stock={stock}
           startDate={startDate}
           endDate={endDate}
+          indicatorOptions={nonKlineIndicators}
         />
       )}
     </div>

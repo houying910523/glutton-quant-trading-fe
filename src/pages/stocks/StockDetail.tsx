@@ -55,7 +55,7 @@ function StockDetail({
           startDate={startDate}
           endDate={endDate}
           withIndicators={true}
-          style={{ width: '100%', height: 620 }}
+          style={{ width: '100%', height: 580 }}
         />
       </Card>
     </div>

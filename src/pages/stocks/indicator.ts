@@ -6,6 +6,7 @@ export type IndicatorOption = {
   name: string
   outputColumns: string[]
   description: string
+  attachKline: boolean
 }
 
 export type IndicatorPoint = {
@@ -20,7 +21,8 @@ export function deserializeIndicatorOptions(raw: any[]): IndicatorOption[] {
       indicatorId: item.indicator_id,
       name: item.indicator_name,
       outputColumns: item.output_columns,
-      description: item.description
+      description: item.description,
+      attachKline: item.attach_kline === 1,
     }
   })
 }
