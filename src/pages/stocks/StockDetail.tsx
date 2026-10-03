@@ -1,7 +1,9 @@
+import {useEffect, useState} from 'react';
 import {Button, Card, Descriptions} from "@arco-design/web-react";
 import Utils from "@/asset/utils";
-import {IconStar} from "@arco-design/web-react/icon";
+import {IconStar, IconStarFill} from "@arco-design/web-react/icon";
 import KlineChart from "@/pages/stocks/KlineChart";
+import {Api} from "@/asset/api";
 
 
 function StockDetail({
@@ -10,6 +12,12 @@ function StockDetail({
   if (!stock) {
     return null;
   }
+  const [optional, setOptional] = useState(stock.optional);
+
+  useEffect(() => {
+    setOptional(stock.optional);
+  }, [stock.id]);
+
   const data = [
     {
       label: '股票代码',
@@ -28,14 +36,29 @@ function StockDetail({
       value: Utils.formatExchange(stock.exchange),
     }
   ]
+
+  const addOptional = async () => {
+    const success = await Api.Stock.optional({stockId: stock.id, action: 'add'});
+    if (success) {
+      stock.optional = 1;
+      setOptional(1);
+    }
+  }
+  const removeOptional = async () => {
+    const success = await Api.Stock.optional({stockId: stock.id, action: 'remove'});
+    if (success) {
+      stock.optional = 0;
+      setOptional(0);
+    }
+  }
   const cardTitle = (
     <div>
       <span>
         {stock.name} ({stock.symbol})
       </span>
       <span style={{float: 'right'}}>
-        <Button type="secondary" icon={<IconStar />}>添加自选</Button>
-        {/*<Button type="secondary" status="warning" icon={<IconStarFill />}>取消自选</Button>*/}
+        {optional === 0 && (<Button type="secondary" icon={<IconStar />} onClick={addOptional}>添加自选</Button>)}
+        {optional === 1 && (<Button type="secondary" status="warning" icon={<IconStarFill />} onClick={removeOptional}>取消自选</Button>)}
       </span>
     </div>
   )

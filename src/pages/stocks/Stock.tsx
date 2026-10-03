@@ -40,7 +40,7 @@ function createTableColumn(onDetailClick: (item: Stock) => void) {
   return columns;
 }
 
-export function AllStockListTabPanel() {
+export function StockListTabPanel({optional}: {optional?: boolean}) {
 
   const [stockList, setStockList] = useState<Stock[]>([]);
   const [keyword, setKeyword] = useState<string>('');
@@ -53,7 +53,17 @@ export function AllStockListTabPanel() {
   const [loading, setLoading] = useState(false);
 
   const requestStockList = async (params: StockListParams) => {
-    const stockList = await Api.Stock.list(params) as StockListResponse;
+    setLoading(true);
+
+    const getStockList = async () => {
+      if (optional) {
+        return await Api.Stock.listOptional(params) as StockListResponse
+      } else {
+        return await Api.Stock.list(params) as StockListResponse;
+      }
+    }
+    const stockList = await getStockList();
+
     const data = stockList.stocks.map(stock => {
       return {
         ...stock,
@@ -135,9 +145,11 @@ export function Stock() {
   return (
     <Tabs defaultActiveTab='all' className='stock-tabs'>
       <Tabs.TabPane key='all' title="所有股票" style={{height: '100%'}}>
-        <AllStockListTabPanel  />
+        <StockListTabPanel />
       </Tabs.TabPane>
-      <Tabs.TabPane key='self' title="自选股票" />
+      <Tabs.TabPane key='optional' title="自选股票" >
+        <StockListTabPanel optional />
+      </Tabs.TabPane>
       <Tabs.TabPane key='selection' title="智能选股" />
      </Tabs>
   )

@@ -50,6 +50,8 @@ export const Api = {
   Stock: {
     list: ({symbol, name, pageNo, pageSize}: StockListParams) => get('/stock/list')({symbol, name, page_no: pageNo, page_size: pageSize}),
     daily: ({stockId, startDate, endDate}: {stockId: number, startDate: string, endDate: string}) => get('/stock/daily')({stock_id: stockId, start_date: startDate, end_date: endDate}),
+    optional: ({stockId, action}: {stockId: number, action: string}) => post('/stock/optional')({stock_id: stockId, action}),
+    listOptional: ({symbol, name, pageNo, pageSize}: StockListParams) => get('/stock/list')({symbol, name, optional: 1, page_no: pageNo, page_size: pageSize}),
   },
   Indicator: {
     list: () => get('/indicator/list')(),

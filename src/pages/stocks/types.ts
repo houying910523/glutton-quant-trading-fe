@@ -4,6 +4,7 @@ type Stock = {
   symbol: string;
   exchange: string;
   listed_at: string;
+  optional: number;
 }
 
 type StockListResponse = {

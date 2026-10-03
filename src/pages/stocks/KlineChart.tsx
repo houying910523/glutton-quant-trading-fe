@@ -141,32 +141,7 @@ function KlineChart({
 
   const [klineIndicators, setKlineIndicators] = useState<IndicatorOption[]>([]);
   const [nonKlineIndicators, setNonKlineIndicators] = useState<IndicatorOption[]>([]);
-  const [activeTab, setActiveTab] = useState(klineIndicators[0]?.indicatorId || '')
-  // 加载所有指标
-  useEffect(() => {
-    let cancelled = false;
-
-    Api.Indicator.list()
-      .then((data) => {
-        if (cancelled) {
-          return;
-        }
-        const options = deserializeIndicatorOptions(data);
-        setKlineIndicators(options.filter(item => item.attachKline));
-        setNonKlineIndicators(options.filter(item => !item.attachKline));
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.error(error);
-          setKlineIndicators([]);
-          setNonKlineIndicators([]);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [activeTab, setActiveTab] = useState('')
 
   // 初始化图表
   useEffect(() => {
@@ -231,6 +206,50 @@ function KlineChart({
     }
   }, [stock, startDate, endDate])
 
+  // 加载所有指标
+  useEffect(() => {
+    let cancelled = false;
+
+    Api.Indicator.list()
+      .then((data) => {
+        if (cancelled) {
+          return;
+        }
+        const options = deserializeIndicatorOptions(data);
+        const klineOptions = options.filter(item => item.attachKline);
+        const nonKlineOptions = options.filter(item => !item.attachKline);
+
+        setKlineIndicators(klineOptions);
+        setNonKlineIndicators(nonKlineOptions);
+        setActiveTab(klineOptions[0]?.indicatorId || '');
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error(error);
+          setKlineIndicators([]);
+          setNonKlineIndicators([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!chart || !activeTab) {
+      return;
+    }
+    if (chart.getIndicators({ paneId: CHART_MAIN_PANE_ID }).length > 0) {
+      return;
+    }
+    const indicator = klineIndicators.find((item) => item.indicatorId === activeTab);
+    if (!indicator) {
+      return;
+    }
+    renderIndicator(chart, stock.id, indicator, startDate, endDate, CHART_MAIN_PANE_ID).then(() => {});
+  }, [chart, activeTab, klineIndicators, stock.id, startDate, endDate]);
+
   const onIndicatorChange = (key: string) => {
     if (!chart) {
       return;
@@ -241,11 +260,11 @@ function KlineChart({
     }
     renderIndicator(chart, stock.id, indicator, startDate, endDate, CHART_MAIN_PANE_ID).then(() => setActiveTab(key));
   }
+
   return (
     <div>
       <Tabs
         activeTab={activeTab}
-        defaultActiveTab={activeTab}
         onChange={onIndicatorChange}
         style={{ marginTop: '0px' }}
       >
