@@ -2,6 +2,7 @@ import {useEffect, useState} from 'react';
 import {Button, Input, Layout, PaginationProps, Table, TableColumnProps, Tabs} from '@arco-design/web-react';
 import {Api, StockListParams} from '@/asset/api';
 import StockDetail from "@/pages/stocks/StockDetail";
+import Selection from "@/pages/stocks/Selection";
 
 function createTableColumn(onDetailClick: (item: Stock) => void) {
   const columns: TableColumnProps[] = [
@@ -150,7 +151,9 @@ export function Stock() {
       <Tabs.TabPane key='optional' title="自选股票" >
         <StockListTabPanel optional />
       </Tabs.TabPane>
-      <Tabs.TabPane key='selection' title="智能选股" />
+      <Tabs.TabPane key='selection' title="智能选股" >
+        <Selection />
+      </Tabs.TabPane>
      </Tabs>
   )
 }

@@ -62,4 +62,7 @@ export const Api = {
       names,
     }),
   },
+  Selection: {
+    filters: () => get('/selection/filters')(),
+  }
 }

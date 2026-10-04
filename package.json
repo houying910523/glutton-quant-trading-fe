@@ -15,6 +15,7 @@
   "dependencies": {
     "@arco-design/web-react": "^2.66.16",
     "axios": "^1.20.0",
+    "html-react-parser": "^6.1.8",
     "klinecharts": "^10.0.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
