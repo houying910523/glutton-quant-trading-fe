@@ -11,10 +11,11 @@ import {
   Tooltip,
   Typography
 } from "@arco-design/web-react";
-import {ReactNode, useEffect, useState} from "react";
+import {ReactNode, useEffect, useRef, useState} from "react";
 import {Api} from "@/asset/api";
 import parse from 'html-react-parser';
 import {LabeledValue} from "@arco-design/web-react/es/Select/interface";
+import type {FormInstance} from "@arco-design/web-react/es/Form";
 
 const { Text } = Typography;
 const RadioGroup = Radio.Group;
@@ -35,8 +36,8 @@ type FilterMeta = {
 }
 
 export default function Selection() {
-  const [paramsForm] = Form.useForm();
   const [searchForm] = Form.useForm();
+  const filterParamsFormsRef = useRef<Record<string, FormInstance<any, any, string | number | symbol>>>({});
   const [options, setOptions] = useState<FilterMeta[]>([]);
 
   useEffect(() => {
@@ -53,6 +54,13 @@ export default function Selection() {
   const [selectedFilters, setSelectedFilters] = useState<(string | number | LabeledValue)[]>([]);
 
   const onSelect = async () => {
+    const filterParamsValues = selectedFilters.reduce<Record<string, Record<string, any>>>((result, item) => {
+      const filterName = String(item);
+      result[filterName] = filterParamsFormsRef.current[filterName]?.getFieldsValue() || {};
+      return result;
+    }, {});
+
+    console.log(filterParamsValues)
     // await Api.Selection.select()
   }
 
@@ -105,7 +113,7 @@ export default function Selection() {
     )
   }
 
-  const filterParamsForms: () => ReactNode = () => {
+  const FilterParamsForms: () => ReactNode = () => {
     const filterMapping: Map<string | number | LabeledValue, FilterMeta> = new Map(options.map(meta => {
       return [meta.name, meta]
     }))
@@ -120,23 +128,37 @@ export default function Selection() {
             <Layout.Sider style={{
               textAlign: 'left',
               width: '40%',
+              display: 'flex',
+              alignItems: 'center',
             }}>
               {filter.description}
             </Layout.Sider>
             <Layout.Content style={{textAlign: 'left', borderLeft: '1px solid #e5e5e5'}}>
-              <Form layout='horizontal' className='filter-params-form'>
+              <Form
+                layout='horizontal'
+                className='filter-params-form'
+                ref={(form) => {
+                  if (form) {
+                    filterParamsFormsRef.current[filter.name] = form;
+                    return;
+                  }
+                  delete filterParamsFormsRef.current[filter.name];
+                }}
+              >
                 {filter.paramsSchema.map((param, index) => (
                   <FormItem key={param.name}
                             label={param.name}
-                            field={param.name}
                             labelCol={{span: 7}}
                             wrapperCol={{span: 16}}
-                            initialValue={param.default}
                   >
-                      <Input style={{width: 150}} />
-                      <span style={{marginLeft: 20, width: 100}}>
+                    <div style={{display: 'flex', alignItems: 'center'}}>
+                      <FormItem field={param.name} initialValue={param.default} noStyle>
+                        <Input style={{width: 150}} />
+                      </FormItem>
+                      <span style={{marginLeft: 20}}>
                         {param.description}
                       </span>
+                    </div>
                   </FormItem>
                 ))}
               </Form>
@@ -157,7 +179,7 @@ export default function Selection() {
     <div>
       <div>
         {SearchForm()}
-        {filterParamsForms()}
+        {FilterParamsForms()}
       </div>
       <div>
 
