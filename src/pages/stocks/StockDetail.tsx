@@ -66,19 +66,13 @@ function StockDetail({
   const startDate = Utils.fromTimestamp(new Date().getTime() - 365 * 24 * 60 * 60 * 1000);
   return (
     <div>
-      <Card
-        style={{ width: '100%' }}
-        title={cardTitle}
-      >
-        <Descriptions colon=' :' layout='inline-horizontal' data={data} column={4} />
-      </Card>
-      <Card style={{ width: '100%', marginTop: '12px' }}>
+      <Card style={{ width: '100%'}}>
         <KlineChart
           stock={stock}
           startDate={startDate}
           endDate={endDate}
           withIndicators={true}
-          style={{ width: '100%', height: 580 }}
+          style={{ width: '100%', height: 650 }}
         />
       </Card>
     </div>

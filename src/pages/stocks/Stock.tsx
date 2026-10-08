@@ -1,45 +1,10 @@
 import {useEffect, useState} from 'react';
-import {Button, Input, Layout, PaginationProps, Table, TableColumnProps, Tabs} from '@arco-design/web-react';
+import {Input, Layout, PaginationProps, Table, Tabs} from '@arco-design/web-react';
 import {Api, StockListParams} from '@/asset/api';
 import StockDetail from "@/pages/stocks/StockDetail";
 import Selection from "@/pages/stocks/Selection";
+import {createTableColumn} from "@/pages/stocks/common";
 
-function createTableColumn(onDetailClick: (item: Stock) => void) {
-  const columns: TableColumnProps[] = [
-    {
-      title: '股票名称',
-      dataIndex: 'name',
-    },
-    {
-      title: '股票代码',
-      dataIndex: 'symbol',
-    },
-    {
-      title: '交易所',
-      dataIndex: 'exchange',
-    },
-    {
-      title: '上市日期',
-      dataIndex: 'listed_at',
-      render: (text: string) => {
-        return text ?? '-';
-      },
-      width: 120,
-    },
-    {
-      title: '操作',
-      render: (col: any, item: Stock, index: number) => {
-        return (
-          <div>
-            <Button size="mini" type="primary" onClick={() => onDetailClick(item)}>详情</Button>
-          </div>
-        );
-      }
-    }
-  ];
-
-  return columns;
-}
 
 export function StockListTabPanel({optional}: {optional?: boolean}) {
 
@@ -52,6 +17,7 @@ export function StockListTabPanel({optional}: {optional?: boolean}) {
     current: 1,
   });
   const [loading, setLoading] = useState(false);
+  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
 
   const requestStockList = async (params: StockListParams) => {
     setLoading(true);
@@ -100,8 +66,6 @@ export function StockListTabPanel({optional}: {optional?: boolean}) {
   useEffect(() => {
     handlePaginationChange(pagination).then(() => {})
   }, [keyword]);
-
-  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
 
   const onDetailClick = (item: Stock) => {
     setSelectedStock(item);

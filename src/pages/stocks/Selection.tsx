@@ -2,12 +2,13 @@ import {
   Button,
   Collapse,
   Divider,
+  Drawer,
   Form,
   Grid,
   Input,
   Layout,
   Radio,
-  Select,
+  Select, Table,
   Tooltip,
   Typography
 } from "@arco-design/web-react";
@@ -16,6 +17,9 @@ import {Api} from "@/asset/api";
 import parse from 'html-react-parser';
 import {LabeledValue} from "@arco-design/web-react/es/Select/interface";
 import type {FormInstance} from "@arco-design/web-react/es/Form";
+import StockDetail from "@/pages/stocks/StockDetail";
+import {createTableColumn} from "@/pages/stocks/common";
+import {Stock} from "@/pages/stocks/Stock";
 
 const { Text } = Typography;
 const RadioGroup = Radio.Group;
@@ -37,8 +41,14 @@ type FilterMeta = {
 
 export default function Selection() {
   const [searchForm] = Form.useForm();
+  const [optional, setOptional] = useState(false);
   const filterParamsFormsRef = useRef<Record<string, FormInstance<any, any, string | number | symbol>>>({});
   const [options, setOptions] = useState<FilterMeta[]>([]);
+  const [stockList, setStockList] = useState<Stock[]>([]);
+  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState<(string | number | LabeledValue)[]>([]);
+  const [filterParamsDrawerVisible, setFilterParamsDrawerVisible] = useState(false);
 
   useEffect(() => {
     Api.Selection.filters().then(data => {
@@ -51,17 +61,19 @@ export default function Selection() {
     })
   }, [])
 
-  const [selectedFilters, setSelectedFilters] = useState<(string | number | LabeledValue)[]>([]);
-
   const onSelect = async () => {
-    const filterParamsValues = selectedFilters.reduce<Record<string, Record<string, any>>>((result, item) => {
+    setLoading(true);
+    const filterParamsValues = selectedFilters.map(item => {
       const filterName = String(item);
-      result[filterName] = filterParamsFormsRef.current[filterName]?.getFieldsValue() || {};
-      return result;
-    }, {});
-
-    console.log(filterParamsValues)
-    // await Api.Selection.select()
+      const params = filterParamsFormsRef.current[filterName]?.getFieldsValue() || {};
+      return {
+        filter: filterName,
+        params,
+      }
+    })
+    const stockList = await Api.Selection.select({filters: filterParamsValues, optional})
+    setStockList(stockList)
+    setLoading(false);
   }
 
   const SearchForm: () => ReactNode = () => {
@@ -100,14 +112,19 @@ export default function Selection() {
           <RadioGroup
             type='button'
             name='type'
-            defaultValue='all'
+            defaultValue={false}
+            value={optional}
+            onChange={setOptional}
           >
-            <Radio value='all'>全部</Radio>
-            <Radio value='optional'>自选</Radio>
+            <Radio value={false}>全部</Radio>
+            <Radio value={true}>自选</Radio>
           </RadioGroup>
         </FormItem>
         <FormItem>
           <Button type='primary' onClick={onSelect}>筛选</Button>
+        </FormItem>
+        <FormItem>
+          <Button onClick={() => setFilterParamsDrawerVisible(true)}>配置筛选器参数</Button>
         </FormItem>
       </Form>
     )
@@ -169,21 +186,54 @@ export default function Selection() {
     }
 
     return (
-      <Collapse accordion style={{width: '1020px', margin: '0px 5px'}}>
+      <Collapse accordion lazyload={false} style={{width: '100%'}}>
         {selectedFilters.map((item, index) => filterCollapseItem(filterMapping.get(item), index))}
       </Collapse>
     )
   }
 
+  const onDetailClick = (item: Stock) => {
+    setSelectedStock(item);
+  }
+
+  const columns = createTableColumn(onDetailClick);
+
   return (
     <div>
       <div>
         {SearchForm()}
+      </div>
+      <Drawer
+        title='配置筛选器参数'
+        placement='bottom'
+        height={660}
+        footer={null}
+        mountOnEnter={false}
+        visible={filterParamsDrawerVisible}
+        onCancel={() => setFilterParamsDrawerVisible(false)}
+        bodyStyle={{padding: '12px 16px', overflowY: 'auto'}}
+      >
         {FilterParamsForms()}
-      </div>
-      <div>
-
-      </div>
+      </Drawer>
+      <Layout style={{height: '100%'}}>
+        <Layout.Sider style={{width: '30%'}}>
+          <Table
+            style={{height: 'auto'}}
+            columns={columns}
+            stripe
+            pagination={false}
+            scroll={{y: '700px'}}
+            data={stockList}
+            loading={loading} />
+        </Layout.Sider>
+        <Layout.Content style={{width: '70%', margin: '0 5px'}}>
+          <div>
+            {selectedStock && (
+              <StockDetail stock={selectedStock} />
+            )}
+          </div>
+        </Layout.Content>
+      </Layout>
     </div>
   )
 }

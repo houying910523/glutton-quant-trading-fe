@@ -46,6 +46,11 @@ export type IndicatorDetailParams = {
   names: string,
 }
 
+export type SelectFilterParams = {
+  filter: string,
+  params: Record<string, any>,
+}
+
 export const Api = {
   Stock: {
     list: ({symbol, name, pageNo, pageSize}: StockListParams) => get('/stock/list')({symbol, name, page_no: pageNo, page_size: pageSize}),
@@ -64,5 +69,6 @@ export const Api = {
   },
   Selection: {
     filters: () => get('/selection/filters')(),
+    select: ({filters, optional}: {filters: SelectFilterParams[], optional: boolean}) => post('/selection/select')({filters, optional}),
   }
 }
