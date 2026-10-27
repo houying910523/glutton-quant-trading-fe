@@ -29,12 +29,6 @@ const router: RouteItem[] = [
     id: 'strategy',
     element: <h3>策略</h3>,
   },
-  {
-    path: '/selection',
-    name: '选股',
-    id: 'selection',
-    element: <h3>选股</h3>,
-  },
 ];
 
 

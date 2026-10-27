@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {Input, Layout, PaginationProps, Table, Tabs} from '@arco-design/web-react';
 import {Api, StockListParams} from '@/asset/api';
 import StockDetail from "@/pages/stocks/StockDetail";
@@ -18,6 +18,9 @@ export function StockListTabPanel({optional}: {optional?: boolean}) {
   });
   const [loading, setLoading] = useState(false);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
+  const [tableScrollY, setTableScrollY] = useState(400);
+  const listPanelRef = useRef<HTMLDivElement>(null);
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
 
   const requestStockList = async (params: StockListParams) => {
     setLoading(true);
@@ -67,35 +70,74 @@ export function StockListTabPanel({optional}: {optional?: boolean}) {
     handlePaginationChange(pagination).then(() => {})
   }, [keyword]);
 
+  useEffect(() => {
+    const updateTableScrollY = () => {
+      const listPanel = listPanelRef.current;
+      const tableWrapper = tableWrapperRef.current;
+      if (!listPanel || !tableWrapper) {
+        return;
+      }
+
+      const tableHeader = tableWrapper.querySelector<HTMLElement>('.arco-table-header');
+      const pagination = tableWrapper.querySelector<HTMLElement>('.arco-table-pagination');
+      const tableTop = tableWrapper.getBoundingClientRect().top;
+      const panelBottom = listPanel.getBoundingClientRect().bottom;
+      const headerHeight = tableHeader?.getBoundingClientRect().height ?? 0;
+      const paginationHeight = pagination?.getBoundingClientRect().height ?? 0;
+      const nextScrollY = Math.max(
+        120,
+        Math.floor(panelBottom - tableTop - headerHeight - paginationHeight),
+      );
+
+      setTableScrollY((current) => current === nextScrollY ? current : nextScrollY);
+    };
+
+    updateTableScrollY();
+    const resizeObserver = new ResizeObserver(updateTableScrollY);
+    if (listPanelRef.current) {
+      resizeObserver.observe(listPanelRef.current);
+    }
+    window.addEventListener('resize', updateTableScrollY);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateTableScrollY);
+    };
+  }, [stockList.length, pagination.total, pagination.pageSize, pagination.current]);
+
   const onDetailClick = (item: Stock) => {
     setSelectedStock(item);
   }
   const columns = createTableColumn(onDetailClick);
 
   return (
-    <Layout style={{height: '100%'}}>
-      <Layout.Sider style={{width: '30%'}}>
-        <Input.Search
-          style={{ width: '100%' }}
-          allowClear
-          placeholder='Enter stock name or symbol'
-          searchButton='Search'
-          onSearch={async (value) => {
-            setKeyword(value);
-            await handlePaginationChange(pagination);
-          }}
-        />
-        <Table
-          style={{marginTop: '10px', height: 'auto'}}
-          columns={columns}
-          stripe
-          scroll={{y: '700px'}}
-          data={stockList}
-          pagination={pagination}
-          onChange={handlePaginationChange}
-          loading={loading} />
+    <Layout style={{height: '100%', minHeight: 0}}>
+      <Layout.Sider style={{width: '30%', minHeight: 0}}>
+        <div className='stock-list-panel' ref={listPanelRef}>
+          <Input.Search
+            style={{ width: '100%' }}
+            allowClear
+            placeholder='Enter stock name or symbol'
+            searchButton='Search'
+            onSearch={async (value) => {
+              setKeyword(value);
+              await handlePaginationChange(pagination);
+            }}
+          />
+          <div ref={tableWrapperRef} style={{marginTop: '10px'}}>
+            <Table
+              style={{height: 'auto'}}
+              columns={columns}
+              stripe
+              scroll={{y: tableScrollY}}
+              data={stockList}
+              pagination={pagination}
+              onChange={handlePaginationChange}
+              loading={loading} />
+          </div>
+        </div>
       </Layout.Sider>
-      <Layout.Content style={{width: '70%', margin: '0 5px'}}>
+      <Layout.Content style={{width: '70%', margin: '0 5px', minHeight: 0}}>
         <div>
           {selectedStock && (
             <StockDetail stock={selectedStock} />
@@ -112,7 +154,7 @@ export function Stock() {
       <Tabs.TabPane key='all' title="所有股票" style={{height: '100%'}}>
         <StockListTabPanel />
       </Tabs.TabPane>
-      <Tabs.TabPane key='optional' title="自选股票" >
+      <Tabs.TabPane key='optional' title="自选股票" style={{height: '100%'}}>
         <StockListTabPanel optional />
       </Tabs.TabPane>
       <Tabs.TabPane key='selection' title="智能选股" >

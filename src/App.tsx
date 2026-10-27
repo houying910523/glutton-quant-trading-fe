@@ -10,8 +10,6 @@ function AppRoutes() {
 }
 
 function App() {
-  const height = window.innerHeight;
-
   const TopMenu = (props: any) => {
     const location = useLocation();
     const selectedKeys = [
@@ -36,7 +34,7 @@ function App() {
   return (
     <div className="app">
       <BrowserRouter>
-        <Layout style={{height: height + 'px'}}>
+        <Layout style={{height: '100vh'}}>
           <Layout.Sider style={{width: '120px'}} >
             <div >
               <h4 style={{color: '#fff', textAlign: 'center'}}>Glutton Quant</h4>

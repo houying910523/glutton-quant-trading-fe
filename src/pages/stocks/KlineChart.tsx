@@ -1,4 +1,4 @@
-import {ComponentPropsWithoutRef, useEffect, useState} from 'react'
+import {ComponentPropsWithoutRef, useEffect, useRef, useState} from 'react'
 import {Chart, DataLoaderGetBarsParams, dispose, init, KLineData, registerIndicator} from 'klinecharts'
 import {Api} from "@/asset/api";
 import Utils from "@/asset/utils";
@@ -197,10 +197,14 @@ function KlineChart({
   const [klineIndicators, setKlineIndicators] = useState<IndicatorOption[]>([]);
   const [nonKlineIndicators, setNonKlineIndicators] = useState<IndicatorOption[]>([]);
   const [activeTab, setActiveTab] = useState('')
+  const chartRef = useRef<HTMLDivElement>(null);
 
   // 初始化图表
   useEffect(() => {
-    const chart: Chart | null = init('chart')
+    if (!chartRef.current) {
+      return;
+    }
+    const chart: Chart | null = init(chartRef.current)
     if (!chart) {
       return;
     }
@@ -257,9 +261,25 @@ function KlineChart({
 
     return () => {
       setChart(null)
-      dispose('chart')
+      dispose(chart)
     }
   }, [stock, startDate, endDate])
+
+  useEffect(() => {
+    if (!chart || !chartRef.current) {
+      return;
+    }
+
+    const resizeChart = () => chart.resize();
+    resizeChart();
+
+    const resizeObserver = new ResizeObserver(resizeChart);
+    resizeObserver.observe(chartRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [chart]);
 
   // 加载所有指标
   useEffect(() => {
@@ -329,7 +349,7 @@ function KlineChart({
           )
         })}
       </Tabs>
-      <div id="chart" {...divProps} />
+      <div ref={chartRef} {...divProps} />
       {withIndicators && (
         <IndicatorPanel
           chart={chart}
